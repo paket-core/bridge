@@ -249,7 +249,7 @@ PREPARE_SEND_BULS = {
 
 PREPARE_ESCROW = {
     'tags': [
-        'packages'
+        'wallet'
     ],
     'parameters': [
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
