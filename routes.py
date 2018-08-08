@@ -111,9 +111,6 @@ def prepare_send_buls_handler(from_pubkey, to_pubkey, amount_buls):
     return {'status': 200, 'transaction': paket_stellar.prepare_send_buls(from_pubkey, to_pubkey, amount_buls)}
 
 
-# Package routes.
-
-
 @BLUEPRINT.route("/v{}/prepare_escrow".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.PREPARE_ESCROW)
 @webserver.validation.call(
@@ -121,7 +118,7 @@ def prepare_send_buls_handler(from_pubkey, to_pubkey, amount_buls):
     require_auth=True)
 def prepare_escrow_handler(
         user_pubkey, launcher_pubkey, courier_pubkey, recipient_pubkey,
-        payment_buls, collateral_buls, deadline_timestamp, location=None):
+        payment_buls, collateral_buls, deadline_timestamp):
     """
     Launch a package.
     Use this call to create a new package for delivery.
@@ -133,14 +130,11 @@ def prepare_escrow_handler(
     :param payment_buls:
     :param collateral_buls:
     :param deadline_timestamp:
-    :param location:
     :return:
     """
-    package_details = paket_stellar.prepare_escrow(
+    return dict(status=201, **paket_stellar.prepare_escrow(
         user_pubkey, launcher_pubkey, courier_pubkey, recipient_pubkey,
-        payment_buls, collateral_buls, deadline_timestamp)
-    db.create_package(**dict(package_details, location=location))
-    return dict(status=201, **package_details)
+        payment_buls, collateral_buls, deadline_timestamp))
 
 
 # Debug routes.
