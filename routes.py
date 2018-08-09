@@ -11,10 +11,10 @@ import webserver.validation
 
 import swagger_specs
 
-LOGGER = util.logger.logging.getLogger('pkt.api')
+LOGGER = util.logger.logging.getLogger('pkt.bridge')
 VERSION = swagger_specs.VERSION
 PORT = os.environ.get('PAKET_BRIDGE_PORT', 8000)
-BLUEPRINT = flask.Blueprint('api', __name__)
+BLUEPRINT = flask.Blueprint('bridge', __name__)
 
 
 # Input validators and fixers.

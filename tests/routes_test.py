@@ -9,7 +9,7 @@ import webserver.validation
 
 import routes
 
-LOGGER = util.logger.logging.getLogger('pkt.api.test')
+LOGGER = util.logger.logging.getLogger('pkt.bridge.test')
 APP = webserver.setup(routes.BLUEPRINT)
 APP.testing = True
 
