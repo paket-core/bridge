@@ -1,4 +1,4 @@
-"""Run the PaKeT funding server."""
+"""Run the PaKeT bridge server."""
 import sys
 import os.path
 
