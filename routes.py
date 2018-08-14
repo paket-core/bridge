@@ -13,7 +13,7 @@ import swagger_specs
 
 LOGGER = util.logger.logging.getLogger('pkt.bridge')
 VERSION = swagger_specs.VERSION
-PORT = os.environ.get('PAKET_BRIDGE_PORT', 8000)
+PORT = os.environ.get('PAKET_BRIDGE_PORT', 8001)
 BLUEPRINT = flask.Blueprint('bridge', __name__)
 
 
