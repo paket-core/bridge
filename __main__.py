@@ -15,4 +15,4 @@ import bridge.swagger_specs
 
 util.logger.setup()
 
-webserver.run(bridge.BLUEPRINT, bridge.swagger_specs.CONFIG, bridge.PORT)
+webserver.run(bridge.routes.BLUEPRINT, bridge.swagger_specs.CONFIG, bridge.routes.PORT)
