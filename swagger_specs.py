@@ -153,7 +153,6 @@ The API
 }
 
 SUBMIT_TRANSACTION = {
-    'tags': ['wallet'],
     'parameters': [
         {
             'name': 'transaction', 'description': 'transaction to submit',
@@ -166,7 +165,6 @@ SUBMIT_TRANSACTION = {
 }
 
 BUL_ACCOUNT = {
-    'tags': ['wallet'],
     'parameters': [
         {
             'name': 'queried_pubkey', 'description': 'pubkey of the account',
@@ -179,7 +177,6 @@ BUL_ACCOUNT = {
 }
 
 PREPARE_ACCOUNT = {
-    'tags': ['wallet'],
     'parameters': [
         {
             'name': 'from_pubkey', 'description': 'creating pubkey (existing account)',
@@ -200,7 +197,6 @@ PREPARE_ACCOUNT = {
 }
 
 PREPARE_TRUST = {
-    'tags': ['wallet'],
     'parameters': [
         {
             'name': 'from_pubkey', 'description': 'pubkey that wants to add trust in our token',
@@ -217,7 +213,6 @@ PREPARE_TRUST = {
 }
 
 PREPARE_SEND_BULS = {
-    'tags': ['wallet'],
     'parameters': [
         {
             'name': 'from_pubkey', 'description': 'target pubkey for transfer',
@@ -238,9 +233,6 @@ PREPARE_SEND_BULS = {
 }
 
 PREPARE_ESCROW = {
-    'tags': [
-        'wallet'
-    ],
     'parameters': [
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
