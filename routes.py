@@ -54,7 +54,7 @@ def bul_account_handler(queried_pubkey):
     :return:
     """
     account = paket_stellar.get_bul_account(queried_pubkey)
-    return dict(status=200, **account)
+    return dict(status=200, account=account)
 
 
 @BLUEPRINT.route("/v{}/prepare_account".format(VERSION), methods=['POST'])
@@ -132,7 +132,7 @@ def prepare_escrow_handler(
     :param deadline_timestamp:
     :return:
     """
-    return dict(status=201, **paket_stellar.prepare_escrow(
+    return dict(status=201, package_details=paket_stellar.prepare_escrow(
         user_pubkey, launcher_pubkey, courier_pubkey, recipient_pubkey,
         payment_buls, collateral_buls, deadline_timestamp))
 
