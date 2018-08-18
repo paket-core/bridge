@@ -9,13 +9,12 @@ import util.logger
 import util.conversion
 import webserver.validation
 
-import db
 import swagger_specs
 
-LOGGER = util.logger.logging.getLogger('pkt.api')
+LOGGER = util.logger.logging.getLogger('pkt.bridge')
 VERSION = swagger_specs.VERSION
-PORT = os.environ.get('PAKET_API_PORT', 8000)
-BLUEPRINT = flask.Blueprint('api', __name__)
+PORT = os.environ.get('PAKET_BRIDGE_PORT', 8001)
+BLUEPRINT = flask.Blueprint('bridge', __name__)
 
 
 # Input validators and fixers.
@@ -55,7 +54,7 @@ def bul_account_handler(queried_pubkey):
     :return:
     """
     account = paket_stellar.get_bul_account(queried_pubkey)
-    return dict(status=200, **account)
+    return dict(status=200, account=account)
 
 
 @BLUEPRINT.route("/v{}/prepare_account".format(VERSION), methods=['POST'])
@@ -112,9 +111,6 @@ def prepare_send_buls_handler(from_pubkey, to_pubkey, amount_buls):
     return {'status': 200, 'transaction': paket_stellar.prepare_send_buls(from_pubkey, to_pubkey, amount_buls)}
 
 
-# Package routes.
-
-
 @BLUEPRINT.route("/v{}/prepare_escrow".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.PREPARE_ESCROW)
 @webserver.validation.call(
@@ -122,7 +118,7 @@ def prepare_send_buls_handler(from_pubkey, to_pubkey, amount_buls):
     require_auth=True)
 def prepare_escrow_handler(
         user_pubkey, launcher_pubkey, courier_pubkey, recipient_pubkey,
-        payment_buls, collateral_buls, deadline_timestamp, location=None):
+        payment_buls, collateral_buls, deadline_timestamp):
     """
     Launch a package.
     Use this call to create a new package for delivery.
@@ -134,97 +130,11 @@ def prepare_escrow_handler(
     :param payment_buls:
     :param collateral_buls:
     :param deadline_timestamp:
-    :param location:
     :return:
     """
-    package_details = paket_stellar.prepare_escrow(
+    return dict(status=201, package_details=paket_stellar.prepare_escrow(
         user_pubkey, launcher_pubkey, courier_pubkey, recipient_pubkey,
-        payment_buls, collateral_buls, deadline_timestamp)
-    db.create_package(**dict(package_details, location=location))
-    return dict(status=201, **package_details)
-
-
-@BLUEPRINT.route("/v{}/accept_package".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.ACCEPT_PACKAGE)
-@webserver.validation.call(['escrow_pubkey'], require_auth=True)
-def accept_package_handler(user_pubkey, escrow_pubkey, location=None):
-    """
-    Accept a package.
-    If the package requires collateral, commit it.
-    If user is the package's recipient, release all funds from the escrow.
-    ---
-    :param user_pubkey:
-    :param escrow_pubkey:
-    :param location:
-    :return:
-    """
-    package = db.get_package(escrow_pubkey)
-    event_type = 'received' if package['recipient_pubkey'] == user_pubkey else 'couriered'
-    db.add_event(escrow_pubkey, user_pubkey, event_type, location)
-    return {'status': 200}
-
-
-@BLUEPRINT.route("/v{}/my_packages".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.MY_PACKAGES)
-@webserver.validation.call(require_auth=True)
-def my_packages_handler(user_pubkey):
-    """
-    Get list of packages concerning the user.
-    ---
-    :param user_pubkey:
-    :return:
-    """
-    packages = db.get_packages(user_pubkey)
-    return {'status': 200, 'packages': packages}
-
-
-@BLUEPRINT.route("/v{}/package".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.PACKAGE)
-@webserver.validation.call(['escrow_pubkey'])
-def package_handler(escrow_pubkey):
-    """
-    Get a full info about a single package.
-    ---
-    :param escrow_pubkey:
-    :return:
-    """
-    package = db.get_package(escrow_pubkey)
-    return {'status': 200, 'package': package}
-
-
-@BLUEPRINT.route("/v{}/add_event".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.ADD_EVENT)
-@webserver.validation.call(['escrow_pubkey', 'event_type', 'location'], require_auth=True)
-def add_event_handler(user_pubkey, escrow_pubkey, event_type, location):
-    """
-    (Deprecated)
-    Add new event for package.
-    ---
-    :param user_pubkey:
-    :param escrow_pubkey:
-    :param event_type:
-    :param location:
-    :return:
-    """
-    LOGGER.warning("/v%s/add_event is deprecated and will be removed in future", VERSION)
-    db.add_event(escrow_pubkey, user_pubkey, event_type, location)
-    return {'status': 200}
-
-
-@BLUEPRINT.route("/v{}/changed_location".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.CHANGED_LOCATION)
-@webserver.validation.call(['escrow_pubkey', 'location'], require_auth=True)
-def changed_location_handler(user_pubkey, escrow_pubkey, location):
-    """
-    Add new `changed_location` event for package.
-    ---
-    :param user_pubkey:
-    :param escrow_pubkey:
-    :param location:
-    :return:
-    """
-    db.add_event(escrow_pubkey, user_pubkey, 'changed location', location)
-    return {'status': 200}
+        payment_buls, collateral_buls, deadline_timestamp))
 
 
 # Debug routes.
@@ -240,35 +150,6 @@ def fund_handler(funded_pubkey, funded_buls=1000000000):
     :return:
     """
     return {'status': 200, 'response': paket_stellar.fund_from_issuer(funded_pubkey, funded_buls)}
-
-
-@BLUEPRINT.route("/v{}/debug/create_mock_package".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.CREATE_MOCK_PACKAGE)
-@webserver.validation.call(
-    ['escrow_pubkey', 'launcher_pubkey', 'recipient_pubkey', 'payment_buls', 'collateral_buls', 'deadline_timestamp'])
-def create_mock_package_handler(
-        escrow_pubkey, launcher_pubkey, recipient_pubkey,
-        payment_buls, collateral_buls, deadline_timestamp):
-    """
-    Create a mock package - for debug only.
-    ---
-    :return:
-    """
-    return {'status': 201, 'package': db.create_package(
-        escrow_pubkey, launcher_pubkey, recipient_pubkey, payment_buls, collateral_buls, deadline_timestamp,
-        'mock_setopts', 'mock_refund', 'mock merge', 'mock payment')}
-
-
-@BLUEPRINT.route("/v{}/debug/packages".format(VERSION), methods=['POST'])
-@flasgger.swag_from(swagger_specs.PACKAGES)
-@webserver.validation.call
-def packages_handler():
-    """
-    Get list of packages - for debug only.
-    ---
-    :return:
-    """
-    return {'status': 200, 'packages': db.get_packages()}
 
 
 @BLUEPRINT.route("/v{}/debug/log".format(VERSION), methods=['POST'])

@@ -1,1 +1,1 @@
-"""API tests"""
+"""Bridge tests"""
