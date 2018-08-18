@@ -9,12 +9,12 @@ import webserver.validation
 
 import routes
 
-LOGGER = util.logger.logging.getLogger('pkt.api.test')
+LOGGER = util.logger.logging.getLogger('pkt.bridge.test')
 APP = webserver.setup(routes.BLUEPRINT)
 APP.testing = True
 
 
-class ApiBaseTest(unittest.TestCase):
+class BridgeBaseTest(unittest.TestCase):
     """Base class for routes tests."""
 
     def __init__(self, *args, **kwargs):
@@ -124,7 +124,7 @@ class ApiBaseTest(unittest.TestCase):
         }
 
 
-class SubmitTransactionTest(ApiBaseTest):
+class SubmitTransactionTest(BridgeBaseTest):
     """Test for submit_transaction route."""
 
     def test_submit_signed(self):
@@ -166,7 +166,7 @@ class SubmitTransactionTest(ApiBaseTest):
             seed=self.funded_seed, transaction=signed_send_buls)
 
 
-class BulAccountTest(ApiBaseTest):
+class BulAccountTest(BridgeBaseTest):
     """Test for bul_account endpoint."""
 
     def test_bul_account(self):
@@ -187,7 +187,7 @@ class BulAccountTest(ApiBaseTest):
                 self.call('bul_account', 200, 'could not verify account exist', queried_pubkey=account)
 
 
-class PrepareAccountTest(ApiBaseTest):
+class PrepareAccountTest(BridgeBaseTest):
     """Test for prepare_account endpoint."""
 
     def test_prepare_account(self):
@@ -200,7 +200,7 @@ class PrepareAccountTest(ApiBaseTest):
             from_pubkey=self.funded_pubkey, new_pubkey=pubkey)
 
 
-class PrepareTrustTest(ApiBaseTest):
+class PrepareTrustTest(BridgeBaseTest):
     """Test for prepare_trust endpoint."""
 
     def test_prepare_trust(self):
@@ -212,7 +212,7 @@ class PrepareTrustTest(ApiBaseTest):
         self.call('prepare_trust', 200, 'could not get trust transaction', from_pubkey=pubkey)
 
 
-class PrepareSendBulsTest(ApiBaseTest):
+class PrepareSendBulsTest(BridgeBaseTest):
     """Test for prepare_send_buls endpoint."""
 
     def test_prepare_send_buls(self):
@@ -224,7 +224,7 @@ class PrepareSendBulsTest(ApiBaseTest):
             from_pubkey=self.funded_pubkey, to_pubkey=pubkey, amount_buls=50000000)
 
 
-class PrepareEscrowTest(ApiBaseTest):
+class PrepareEscrowTest(BridgeBaseTest):
     """Test for prepare_escrow endpoint."""
 
     def test_prepare_escrow(self):

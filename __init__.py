@@ -1,1 +1,1 @@
-"""API server for the PAKET project."""
+"""Bridge server for the PAKET project."""

@@ -1,7 +1,7 @@
 """Swagger specifications of Identity Server."""
 VERSION = 3
 CONFIG = {
-    'title': 'PaKeT API',
+    'title': 'PaKeT Bridge',
     'uiversion': 2,
     'specs_route': '/',
     'specs': [{
@@ -14,7 +14,7 @@ CONFIG = {
         'contact': {
             'name': 'The PaKeT Project',
             'email': 'israel@paket.global',
-            'url': 'https://api.paket.global',
+            'url': 'https://bridge.paket.global',
         },
         'license': {
             'name': 'GNU GPL 3.0',
@@ -25,7 +25,7 @@ Web API Server for The PaKeT Project
 
 What is this?
 =============
-This page is used as both documentation of our server API and as a sandbox to
+This page is used as both documentation of our bridge server and as a sandbox to
 test interaction with it. You can use this page to call the RESTful API while
 specifying any required or optional parameter. The page also presents curl
 commands that can be used to call the server.
@@ -45,17 +45,17 @@ Our calls are split into the following security levels:
  - Anonymous functions: require no authentication.
  - Authenticated functions: require asymmetric key authentication. Not tested
    in debug mode.
-    - The 'Pubkey' header will contain the user's pubkey.
-    - The 'Fingerprint' header is constructed from the comma separated
+    - The **'Pubkey'** header will contain the user's pubkey.
+    - The **'Fingerprint'** header is constructed from the comma separated
       concatenation of the called URI, all the arguments (as key=value), and an
       ever increasing nonce (recommended to use Unix time in milliseconds).
-    - The 'Signature' header will contain the signature of the key specified in
-      the 'Pubkey' header on the fingerprint specified in the 'Fingerprint'
-      header, encoded to Base64 ASCII.
+    - The **'Signature'** header will contain a Base64 ASCII encoded signature
+      on the specified 'Fingerprint', produced by the private key corresponding
+      to the specified 'pubkey'.
 
 Walkthrough
 ===========
-The following steps demonstrate the main functionality of the API.
+The following steps demonstrate the main functionality of the Bridge.
 
 ### Setup
 
@@ -65,16 +65,16 @@ launcher account, a courier account, and a recipient account.
 - To create an account you need a Stellar compatible ed25519 keypair with a
   matching funded Stellar account. While on testnet, the Stellar account
   creator is your friend: https://www.stellar.org/laboratory/#account-creator
-- Once your account is created, check it by calling /bul_account - you should
+- Once your account is created, check it by calling `/bul_account` - you should
   get a 409 error saying that the account does not trust BULs.
 - To change this and extend trust in BULs, from each account you should call
-  /prepare_trust, sign the returned XDR with the matching private key, and
-  submit it to /submit_transaction.
-- Check your account by calling /bul_account again - you should now get a BUL
+  `/prepare_trust`, sign the returned XDR with the matching private key, and
+  submit it to `/submit_transaction`.
+- Check your account by calling `/bul_account` again - you should now get a BUL
   balance of 0.
 - Transfer some BULs into each of the accounts. In debug mode, you can call
-  /fund_from_issuer.
-- Check your account by calling /bul_account again - make sure your BUL balance
+  `/fund_from_issuer`.
+- Check your account by calling `/bul_account` again - make sure your BUL balance
   reflects the amount of BULs you transfered.
 
 ### Launch a Package
@@ -84,16 +84,16 @@ launcher account, a courier account, and a recipient account.
   launcher, and it will be the launhcer's responsability to merge this account
   back to reclaim any leftover XLMs.
     - Generate a keypair.
-    - As the launcher, call /prepare_account with the new pubkey given
+    - As the launcher, call `/prepare_account` with the new pubkey given
       as argument, sign the returned transaction (with the launcher private
-      key), and submit it to /submit_transaction.
-    - Optionally, check the new account by calling /bul_account - you should
+      key), and submit it to `/submit_transaction`.
+    - Optionally, check the new account by calling `/bul_account` - you should
       get a 409 error saying that the account does not trust BULs.
-    - As the new escrow account, call /prepare_trust, sign the returned
+    - As the new escrow account, call `/prepare_trust`, sign the returned
       transaction (with the escrow private key), and submit it to
-      /submit_transaction.
-    - Optionally, call /bul_account and verify your BUL balance is now 0.
-- As the escrow account, call /prepare_escrow. Make sure that the payment is
+      `/submit_transaction`.
+    - Optionally, call `/bul_account` and verify your BUL balance is now 0.
+- As the escrow account, call `/prepare_escrow`. Make sure that the payment is
   not larger than the launcher's BUL balance, and that the collateral is not
   larger than the courier's. The call will return four unsigned transactions:
     - set_options_transaction: changes the signers and weights, thus
@@ -117,41 +117,31 @@ launcher account, a courier account, and a recipient account.
       can only be submitted after either the payment or the collateral
       transaction.
 - As the escrow account, sign and submit the set_options_transaction.
-- Call /bul_account on the escrow account and verify that the signers are
+- Call `/bul_account` on the escrow account and verify that the signers are
 properly set.
-- Make note of the BUL balances of the launcher by calling /bul_account.
+- Make note of the BUL balances of the launcher by calling `/bul_account`.
 - Transfer the payment from the launcher to the escrow by calling
-/prepare_send_buls, signing the transaction, and submitting it to
-/submit_transaction from your launcher account.
-- Make note of the BUL balances of the launcher by calling /bul_account. It
+`/prepare_send_buls`, signing the transaction, and submitting it to
+`/submit_transaction` from your launcher account.
+- Make note of the BUL balances of the launcher by calling `/bul_account`. It
   should be the same as before minus the payment.
-
-### Accept the Package by Courier
-
-- Make note of the BUL balances of the courier by calling /bul_account.
-- Transfer the collateral from the courier to the escrow by calling
-/prepare_send_buls, signing the transaction, and submitting it to
-/submit_transaction from the courier account.
-- Make note of the BUL balances of the courier by calling /bul_account. It
-  should be the same as before minus the collateral.
-- As the courier, call /accept_package with the escrow_pubkey as argument.
 
 ### Settle the Delivery
 
 - Either approve the delivery:
     - As the recipient, sign and submit the payment transaction.
-    - Make note of the BUL balances of the courier by calling /bul_account. It
+    - Make note of the BUL balances of the courier by calling `/bul_account`. It
     should be the same as before, plus both payment and collateral.
 - Or wait for deadline to pass and ask for a refund + insurance.
     - Submit the payment transaction.
-    - Make note of the BUL balances of the launcher by calling /bul_account. It
+    - Make note of the BUL balances of the launcher by calling `/bul_account`. It
     should be the same as before, plus both payment and collateral.
 
 ### Merge the Escrow Account
 
 - Make note of the XLM balances of the launcher and the escrow by calling
-/bul_account on both.
-- Submit the merge account transaction to /submit_transaction for the launcher
+`/bul_account` on both.
+- Submit the merge account transaction to `/submit_transaction` for the launcher
   to reclaim any unspent XLM that were spent creating the escrow account.
 - Make note of the XLM balances of the launcher. It should be the same as
   before plus the escrow's XLM balance.
@@ -163,7 +153,6 @@ The API
 }
 
 SUBMIT_TRANSACTION = {
-    'tags': ['wallet'],
     'parameters': [
         {
             'name': 'transaction', 'description': 'transaction to submit',
@@ -176,7 +165,6 @@ SUBMIT_TRANSACTION = {
 }
 
 BUL_ACCOUNT = {
-    'tags': ['wallet'],
     'parameters': [
         {
             'name': 'queried_pubkey', 'description': 'pubkey of the account',
@@ -189,7 +177,6 @@ BUL_ACCOUNT = {
 }
 
 PREPARE_ACCOUNT = {
-    'tags': ['wallet'],
     'parameters': [
         {
             'name': 'from_pubkey', 'description': 'creating pubkey (existing account)',
@@ -210,7 +197,6 @@ PREPARE_ACCOUNT = {
 }
 
 PREPARE_TRUST = {
-    'tags': ['wallet'],
     'parameters': [
         {
             'name': 'from_pubkey', 'description': 'pubkey that wants to add trust in our token',
@@ -227,7 +213,6 @@ PREPARE_TRUST = {
 }
 
 PREPARE_SEND_BULS = {
-    'tags': ['wallet'],
     'parameters': [
         {
             'name': 'from_pubkey', 'description': 'target pubkey for transfer',
@@ -248,9 +233,6 @@ PREPARE_SEND_BULS = {
 }
 
 PREPARE_ESCROW = {
-    'tags': [
-        'packages'
-    ],
     'parameters': [
         {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
@@ -272,10 +254,7 @@ PREPARE_ESCROW = {
             'in': 'formData', 'required': True, 'type': 'integer'},
         {
             'name': 'deadline_timestamp', 'description': 'deadline timestamp',
-            'in': 'formData', 'required': True, 'type': 'integer'},
-        {
-            'name': 'location', 'description': 'GPS location in format "latitude, longitude"',
-            'in': 'formData', 'required': False, 'type': 'string'}
+            'in': 'formData', 'required': True, 'type': 'integer'}
     ],
     'responses': {
         '201': {
@@ -284,165 +263,6 @@ PREPARE_ESCROW = {
     }
 }
 
-ACCEPT_PACKAGE = {
-    'tags': ['packages'],
-    'parameters': [
-        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-        {
-            'name': 'escrow_pubkey', 'description': 'escrow pubkey (the package ID)',
-            'in': 'formData', 'required': True, 'type': 'string',
-        },
-        {
-            'name': 'location', 'description': 'location of place where user accepted package',
-            'in': 'formData', 'required': False, 'type': 'string'
-        }
-    ],
-    'responses': {
-        '200': {
-            'description': 'package custodianship changed'
-        }
-    }
-}
-
-MY_PACKAGES = {
-    'tags': ['packages'],
-    'parameters': [
-        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-    ],
-    'responses': {
-        '200': {
-            'description': 'list of packages',
-            'schema': {
-                'properties': {
-                    'packages': {
-                        'type': 'array',
-                        'items': {
-                            '$ref': '#/definitions/Package-info'
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-PACKAGE = {
-    'tags': ['packages'],
-    'parameters': [
-        {
-            'name': 'escrow_pubkey', 'description': 'escrow pubkey (the package ID)',
-            'in': 'formData', 'required': True, 'type': 'string',
-        }
-    ],
-    'definitions': {
-        'Event': {
-            'type': 'object',
-            'properties': {
-                'event-type': {
-                    'type': 'string'
-                },
-                'timestamp': {
-                    'type': 'integer'
-                },
-                'pubkey': {
-                    'type': 'string'
-                },
-                'location': {
-                    'type': 'string'
-                }
-            }
-        },
-        'Package-info': {
-            'type': 'object',
-            'properties': {
-                'PKT-id': {
-                    'type': 'string'
-                },
-                'blockchain-url': {
-                    'type': 'string'
-                },
-                'collateral': {
-                    'type': 'integer'
-                },
-                'deadline-timestamp': {
-                    'type': 'integer'
-                },
-                'paket-url': {
-                    'type': 'string'
-                },
-                'payment': {
-                    'type': 'integer'
-                },
-                'recipient-id': {
-                    'type': 'string'
-                },
-                'send-timestamp': {
-                    'type': 'integer'
-                },
-                'status': {
-                    'type': 'string'
-                },
-                'events': {
-                    'type': 'array',
-                    'items': {
-                        '$ref': '#/definitions/Event'
-                    }
-                }
-            }
-        }
-    },
-    'responses': {
-        '200': {
-            'description': 'a single packages',
-            'schema': {
-                '$ref': '#/definitions/Package-info'
-            }
-        }
-    }
-}
-
-ADD_EVENT = {
-    'tags': ['packages'],
-    'parameters': [
-        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-        {
-            'name': 'escrow_pubkey', 'description': 'pubkey of package escrow',
-            'in': 'formData', 'required': True, 'type': 'string'},
-        {
-            'name': 'event_type', 'description': 'type of event',
-            'in': 'formData', 'required': True, 'type': 'string'},
-        {
-            'name': 'location', 'description': 'GPS coordinates where event happened',
-            'in': 'formData', 'required': True, 'type': 'string'}
-    ],
-    'responses': {
-        '200': {'description': 'event successfully added'}
-    }
-}
-
-CHANGED_LOCATION = {
-    'tags': ['packages'],
-    'parameters': [
-        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
-        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
-        {
-            'name': 'escrow_pubkey', 'description': 'pubkey of package escrow',
-            'in': 'formData', 'required': True, 'type': 'string'},
-        {
-            'name': 'location', 'description': 'GPS coordinates where user is at this moment',
-            'in': 'formData', 'required': True, 'type': 'string'}
-    ],
-    'responses': {
-        '200': {'description': 'event successfully added'}
-    }
-}
 
 FUND_FROM_ISSUER = {
     'tags': ['debug'],
@@ -459,43 +279,6 @@ FUND_FROM_ISSUER = {
     }
 }
 
-CREATE_MOCK_PACKAGE = {
-    'tags': [
-        'debug'
-    ],
-    'parameters': [
-        {
-            'name': 'escrow_pubkey', 'description': 'escrow pubkey',
-            'in': 'formData', 'required': True, 'type': 'string'},
-        {
-            'name': 'launcher_pubkey', 'description': 'launcher pubkey',
-            'in': 'formData', 'required': True, 'type': 'string'},
-        {
-            'name': 'recipient_pubkey', 'description': 'recipient pubkey',
-            'in': 'formData', 'required': True, 'type': 'string'},
-        {
-            'name': 'payment_buls', 'description': 'BULs promised as payment',
-            'in': 'formData', 'required': True, 'type': 'integer'},
-        {
-            'name': 'collateral_buls', 'description': 'BULs promised as collateral',
-            'in': 'formData', 'required': True, 'type': 'integer'},
-        {
-            'name': 'deadline_timestamp', 'description': 'deadline timestamp',
-            'in': 'formData', 'required': True, 'type': 'integer'},
-    ],
-    'responses': {
-        '201': {
-            'description': 'package details',
-        }
-    }
-}
-
-PACKAGES = {
-    'tags': ['debug'],
-    'responses': {
-        '200': {'description': 'a list of packages'}
-    }
-}
 
 LOG = {
     'tags': [

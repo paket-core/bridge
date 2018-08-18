@@ -11,10 +11,10 @@ import webserver.validation
 
 import swagger_specs
 
-LOGGER = util.logger.logging.getLogger('pkt.api')
+LOGGER = util.logger.logging.getLogger('pkt.bridge')
 VERSION = swagger_specs.VERSION
-PORT = os.environ.get('PAKET_API_PORT', 8000)
-BLUEPRINT = flask.Blueprint('api', __name__)
+PORT = os.environ.get('PAKET_BRIDGE_PORT', 8001)
+BLUEPRINT = flask.Blueprint('bridge', __name__)
 
 
 # Input validators and fixers.
@@ -54,7 +54,7 @@ def bul_account_handler(queried_pubkey):
     :return:
     """
     account = paket_stellar.get_bul_account(queried_pubkey)
-    return dict(status=200, **account)
+    return dict(status=200, account=account)
 
 
 @BLUEPRINT.route("/v{}/prepare_account".format(VERSION), methods=['POST'])
@@ -111,9 +111,6 @@ def prepare_send_buls_handler(from_pubkey, to_pubkey, amount_buls):
     return {'status': 200, 'transaction': paket_stellar.prepare_send_buls(from_pubkey, to_pubkey, amount_buls)}
 
 
-# Package routes.
-
-
 @BLUEPRINT.route("/v{}/prepare_escrow".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.PREPARE_ESCROW)
 @webserver.validation.call(
@@ -133,10 +130,35 @@ def prepare_escrow_handler(
     :param payment_buls:
     :param collateral_buls:
     :param deadline_timestamp:
-    :param location:
     :return:
     """
-    package_details = paket_stellar.prepare_escrow(
+    return dict(status=201, package_details=paket_stellar.prepare_escrow(
         user_pubkey, launcher_pubkey, courier_pubkey, recipient_pubkey,
-        payment_buls, collateral_buls, deadline_timestamp)
-    return dict(status=201, package_details=package_details)
+        payment_buls, collateral_buls, deadline_timestamp))
+
+
+# Debug routes.
+
+
+@BLUEPRINT.route("/v{}/debug/fund".format(VERSION), methods=['POST'])
+@flasgger.swag_from(swagger_specs.FUND_FROM_ISSUER)
+@webserver.validation.call(['funded_pubkey'])
+def fund_handler(funded_pubkey, funded_buls=1000000000):
+    """
+    Give an account BULs - for debug only.
+    ---
+    :return:
+    """
+    return {'status': 200, 'response': paket_stellar.fund_from_issuer(funded_pubkey, funded_buls)}
+
+
+@BLUEPRINT.route("/v{}/debug/log".format(VERSION), methods=['POST'])
+@flasgger.swag_from(swagger_specs.LOG)
+@webserver.validation.call
+def view_log_handler(lines_num=10):
+    """
+    Get last lines of log - for debug only.
+    Specify lines_num to get the x last lines.
+    """
+    with open(os.path.join(util.logger.LOG_DIR_NAME, util.logger.LOG_FILE_NAME)) as logfile:
+        return {'status': 200, 'log': logfile.readlines()[:-1 - lines_num:-1]}
