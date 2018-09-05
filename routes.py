@@ -132,9 +132,33 @@ def prepare_escrow_handler(
     :param deadline_timestamp:
     :return:
     """
-    return dict(status=201, package_details=paket_stellar.prepare_escrow(
+    return dict(status=201, escrow_details=paket_stellar.prepare_escrow(
         user_pubkey, launcher_pubkey, courier_pubkey, recipient_pubkey,
         payment_buls, collateral_buls, deadline_timestamp))
+
+
+@BLUEPRINT.route("/v{}/prepare_relay".format(VERSION), methods=['POST'])
+@flasgger.swag_from(swagger_specs.PREPARE_RELAY)
+@webserver.validation.call(
+    ['relayer_pubkey', 'relayee_pubkey', 'relayer_stroops', 'relayee_stroops', 'deadline_timestamp'],
+    require_auth=True)
+def prepare_relay_handler(
+        user_pubkey, relayer_pubkey, relayee_pubkey, relayer_stroops,
+        relayee_stroops, deadline_timestamp):
+    """
+    Launch a package.
+    Use this call to create a new package for delivery.
+    ---
+    :param user_pubkey: the relay pubkey
+    :param relayer_pubkey:
+    :param relayee_pubkey:
+    :param relayer_stroops:
+    :param relayee_stroops:
+    :param deadline_timestamp:
+    :return:
+    """
+    return dict(status=201, relay_details=paket_stellar.prepare_relay(
+        user_pubkey, relayer_pubkey, relayee_pubkey, relayer_stroops, relayee_stroops, deadline_timestamp))
 
 
 # Debug routes.

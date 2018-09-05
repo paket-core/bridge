@@ -123,6 +123,31 @@ class BridgeBaseTest(unittest.TestCase):
             'transactions': escrow_transactions
         }
 
+    def prepare_relay(self, payment, collateral, deadline, location=None):
+        """Create launcher, courier, recipient, escrow accounts and call prepare_escrow"""
+        escrow_details = self.prepare_escrow(payment, collateral, deadline, location)
+        relayer = escrow_details['courier']
+        relayee = self.create_and_setup_new_account(collateral)
+        relay = self.create_and_setup_new_account()
+        total_stroops = payment + collateral
+        relayer_stroops = int(total_stroops / 2)
+        relayee_stroops = total_stroops - relayer_stroops
+        LOGGER.info(
+            "preparing relay: %s, relayer: %s, relayee: %s",
+            relay[0], relayer[0], relayee[0])
+        relay_transactions = self.call(
+            'prepare_relay', 201, 'can not prepare relay transactions', relay[1],
+            relayer_pubkey=relayer[0], relayee_pubkey=relayee[0],
+            relayer_stroops=relayer_stroops, relayee_stroops=relayee_stroops,
+            deadline_timestamp=deadline, location=location)
+
+        return {
+            'escrow': escrow_details,
+            'relayee': relayee,
+            'relay': relay,
+            'transactions': relay_transactions
+        }
+
 
 class SubmitTransactionTest(BridgeBaseTest):
     """Test for submit_transaction route."""
@@ -227,9 +252,9 @@ class PrepareSendBulsTest(BridgeBaseTest):
 class PrepareEscrowTest(BridgeBaseTest):
     """Test for prepare_escrow endpoint."""
 
-    def test_prepare_escrow(self):
+    def test_prepare_escrow_and_relay(self):
         """Test preparing escrow transaction."""
         payment, collateral = 50000000, 100000000
         deadline = int(time.time())
-        LOGGER.info('preparing new escrow')
-        self.prepare_escrow(payment, collateral, deadline)
+        LOGGER.info('preparing new escrow and relay')
+        LOGGER.debug(self.prepare_relay(payment, collateral, deadline))
