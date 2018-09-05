@@ -9,7 +9,7 @@ CONFIG = {
         'route': '/apispec.json',
     }],
     'info': {
-        'title': 'The PaKeT Server API',
+        'title': 'The PaKeT Bridge API',
         'version': VERSION,
         'contact': {
             'name': 'The PaKeT Project',
@@ -21,7 +21,7 @@ CONFIG = {
             'url': 'http://www.gnu.org/licenses/'
         },
         'description': '''
-Web API Server for The PaKeT Project
+Bridge Server for The PaKeT Project
 
 What is this?
 =============
