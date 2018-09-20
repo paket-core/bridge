@@ -21,9 +21,8 @@ class BridgeBaseTest(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self.app = APP.test_client()
         self.host = 'http://localhost'
-        self.funded_seed = 'SDJGBJZMQ7Z4W3KMSMO2HYEV56DJPOZ7XRR7LJ5X2KW6VKBSLELR7MRQ'
-        self.funded_account = paket_stellar.get_keypair(seed=self.funded_seed)
-        self.funded_pubkey = self.funded_account.address().decode()
+        self.funder_seed = paket_stellar.ISSUER_SEED
+        self.funder_pubkey = paket_stellar.ISSUER
         LOGGER.info('init done')
 
     @staticmethod
@@ -71,15 +70,16 @@ class BridgeBaseTest(unittest.TestCase):
         response = self.submit(unsigned, seed, 'create account')
         return response
 
-    def create_and_setup_new_account(self, amount_buls=None, trust_limit=None):
+    def create_and_setup_new_account(self, starting_balance=50000000, buls_amount=None, trust_limit=None):
         """Create account. Add trust and send initial ammount of BULs (if specified)"""
         keypair = paket_stellar.get_keypair()
         pubkey = keypair.address().decode()
         seed = keypair.seed().decode()
-        self.create_account(from_pubkey=self.funded_pubkey, new_pubkey=pubkey, seed=self.funded_seed)
+        self.create_account(from_pubkey=self.funder_pubkey, new_pubkey=pubkey,
+                            seed=self.funder_seed, starting_balance=starting_balance)
         self.trust(pubkey, seed, trust_limit)
-        if amount_buls is not None:
-            self.send(from_seed=self.funded_seed, to_pubkey=pubkey, amount_buls=amount_buls)
+        if buls_amount is not None:
+            self.send(from_seed=self.funder_seed, to_pubkey=pubkey, amount_buls=buls_amount)
         return pubkey, seed
 
     def trust(self, pubkey, seed, limit=None):
@@ -161,13 +161,13 @@ class SubmitTransactionTest(BridgeBaseTest):
         # checking create_account transaction
         unsigned_account = self.call(
             'prepare_account', 200, 'could not get create account transaction',
-            from_pubkey=self.funded_pubkey, new_pubkey=new_pubkey)['transaction']
-        signed_account = self.sign_transaction(unsigned_account, self.funded_seed)
+            from_pubkey=self.funder_pubkey, new_pubkey=new_pubkey)['transaction']
+        signed_account = self.sign_transaction(unsigned_account, self.funder_seed)
         LOGGER.info('Submitting signed create_account transaction')
         self.call(
             path='submit_transaction', expected_code=200,
             fail_message='unexpected server response for submitting signed create_account transaction',
-            seed=self.funded_seed, transaction=signed_account)
+            seed=self.funder_seed, transaction=signed_account)
 
         # checking trust transaction
         unsigned_trust = self.call(
@@ -181,14 +181,14 @@ class SubmitTransactionTest(BridgeBaseTest):
 
         # checking send_buls transaction
         unsigned_send_buls = self.call(
-            'prepare_send_buls', 200, "can not prepare send from {} to {}".format(self.funded_pubkey, new_pubkey),
-            from_pubkey=self.funded_pubkey, to_pubkey=new_pubkey, amount_buls=5)['transaction']
-        signed_send_buls = self.sign_transaction(unsigned_send_buls, self.funded_seed)
+            'prepare_send_buls', 200, "can not prepare send from {} to {}".format(self.funder_pubkey, new_pubkey),
+            from_pubkey=self.funder_pubkey, to_pubkey=new_pubkey, amount_buls=5)['transaction']
+        signed_send_buls = self.sign_transaction(unsigned_send_buls, self.funder_seed)
         LOGGER.info('Submitting signed send_buls transaction')
         self.call(
             path='submit_transaction', expected_code=200,
             fail_message='unexpected server response for submitting signed send_buls transaction',
-            seed=self.funded_seed, transaction=signed_send_buls)
+            seed=self.funder_seed, transaction=signed_send_buls)
 
 
 class BulAccountTest(BridgeBaseTest):
@@ -196,13 +196,13 @@ class BulAccountTest(BridgeBaseTest):
 
     def test_bul_account(self):
         """Test getting existing account."""
-        accounts = [self.funded_pubkey]
+        accounts = [self.funder_pubkey]
         # additionally create 3 new accounts
         for _ in range(3):
             keypair = paket_stellar.get_keypair()
             pubkey = keypair.address().decode()
             seed = keypair.seed().decode()
-            self.create_account(from_pubkey=self.funded_pubkey, new_pubkey=pubkey, seed=self.funded_seed)
+            self.create_account(from_pubkey=self.funder_pubkey, new_pubkey=pubkey, seed=self.funder_seed)
             self.trust(pubkey, seed)
             accounts.append(pubkey)
 
@@ -222,7 +222,7 @@ class PrepareAccountTest(BridgeBaseTest):
         LOGGER.info('preparing create account transaction for public key: %s', pubkey)
         self.call(
             'prepare_account', 200, 'could not get create account transaction',
-            from_pubkey=self.funded_pubkey, new_pubkey=pubkey)
+            from_pubkey=self.funder_pubkey, new_pubkey=pubkey)
 
 
 class PrepareTrustTest(BridgeBaseTest):
@@ -232,7 +232,7 @@ class PrepareTrustTest(BridgeBaseTest):
         """Test preparing transaction for trusting BULs."""
         keypair = paket_stellar.get_keypair()
         pubkey = keypair.address().decode()
-        self.create_account(from_pubkey=self.funded_pubkey, new_pubkey=pubkey, seed=self.funded_seed)
+        self.create_account(from_pubkey=self.funder_pubkey, new_pubkey=pubkey, seed=self.funder_seed)
         LOGGER.info('querying prepare trust for user: %s', pubkey)
         self.call('prepare_trust', 200, 'could not get trust transaction', from_pubkey=pubkey)
 
@@ -245,8 +245,8 @@ class PrepareSendBulsTest(BridgeBaseTest):
         pubkey, _ = self.create_and_setup_new_account()
         LOGGER.info('preparing send buls transaction for user: %s', pubkey)
         self.call(
-            'prepare_send_buls', 200, 'can not prepare send from {} to {}'.format(self.funded_pubkey, pubkey),
-            from_pubkey=self.funded_pubkey, to_pubkey=pubkey, amount_buls=50000000)
+            'prepare_send_buls', 200, 'can not prepare send from {} to {}'.format(self.funder_pubkey, pubkey),
+            from_pubkey=self.funder_pubkey, to_pubkey=pubkey, amount_buls=50000000)
 
 
 class PrepareEscrowTest(BridgeBaseTest):
@@ -258,3 +258,23 @@ class PrepareEscrowTest(BridgeBaseTest):
         deadline = int(time.time())
         LOGGER.info('preparing new escrow and relay')
         LOGGER.debug(self.prepare_relay(payment, collateral, deadline))
+
+    def test_ent_to_end(self):
+        payment = 10000000
+        collateral = 20000000
+        relay_payment = 5000000
+        relay_collateral = 10000000
+
+        launcher_account, first_courier_account, second_courier_account, recipient_account = (
+            self.create_and_setup_new_account() for _ in range(4))
+        escrow_account = self.create_and_setup_new_account(buls_amount=payment)
+        relay_account = self.create_and_setup_new_account(buls_amount=payment)
+
+        deadline = int(time.time()) + 60 * 60 * 24 * 10
+        escrow = paket_stellar.prepare_escrow(escrow_account[0], launcher_account[0], first_courier_account[0],
+                                              recipient_account[0], payment, collateral, deadline)
+        paket_stellar.submit_transaction_envelope(escrow['set_options_transaction'], launcher_account[1])
+
+        relay = paket_stellar.prepare_relay(relay_account[0], first_courier_account[0], second_courier_account[0],
+                                            relay_payment, relay_collateral, deadline)
+        paket_stellar.submit_transaction_envelope(relay['set_options_transaction'], first_courier_account[1])
