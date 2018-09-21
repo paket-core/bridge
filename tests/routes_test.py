@@ -260,21 +260,67 @@ class PrepareEscrowTest(BridgeBaseTest):
         LOGGER.debug(self.prepare_relay(payment, collateral, deadline))
 
     def test_ent_to_end(self):
+        "End-to-end test."
+        # prepare escrow properties
         payment = 10000000
         collateral = 20000000
         relay_payment = 5000000
         relay_collateral = 10000000
-
-        launcher_account, first_courier_account, second_courier_account, recipient_account = (
-            self.create_and_setup_new_account() for _ in range(4))
-        escrow_account = self.create_and_setup_new_account(buls_amount=payment)
-        relay_account = self.create_and_setup_new_account(buls_amount=payment)
-
         deadline = int(time.time()) + 60 * 60 * 24 * 10
-        escrow = paket_stellar.prepare_escrow(escrow_account[0], launcher_account[0], first_courier_account[0],
-                                              recipient_account[0], payment, collateral, deadline)
-        paket_stellar.submit_transaction_envelope(escrow['set_options_transaction'], launcher_account[1])
 
-        relay = paket_stellar.prepare_relay(relay_account[0], first_courier_account[0], second_courier_account[0],
-                                            relay_payment, relay_collateral, deadline)
-        paket_stellar.submit_transaction_envelope(relay['set_options_transaction'], first_courier_account[1])
+        # prepare accounts
+        # launcher_account, first_courier_account, second_courier_account, recipient_account = (
+        #     self.create_and_setup_new_account() for _ in range(4))
+        # escrow_account = self.create_and_setup_new_account(buls_amount=payment)
+        launcher_account = ('GBI27N2K5CA46RVPPO2UFQABNQIOFVJGJPXJWNROS2KR6J5BP2H7TX4M',
+                            'SAAR6N7SLB3OECH7OBEGNPXADX35GV7R7EVC6P67EEXXWKIZYC346BWV')
+        first_courier_account = ('GDCFBUSFW5GDHO6TQW65ACW3JRDFTBK2I5YTWJRRJHIFIPO5FIQWLOLA',
+                                 'SDBE3HXYKW2WMQWKZOCNRD4EICC4VMBOTM7BCSROQAA7TGVWZZGCO7LV')
+        second_courier_account = ('GB7VMXUABOSAG7TXDPVR2MMHEBKEXBNWA2EHP5SUHG5HU66PDW2F77W6',
+                                  'SAEYMJX77WYIHT2TSONGMTUTTSR7CR2GOMPZQKNRJA5Z6JZ63REZ5KU2')
+        recipient_account = ('GBR4SCRHZUPYYFIC7HBJKMEIESSZRGSTYMZSLNSG2IH2B6Z766QDTXJC',
+                             'SB7R6P6NMJS3S6PA6WKFWQMD3BU4H2N7ZT4OORVQC5PSHLBBEG2OU7TZ')
+        # prepare escrow account
+        # escrow_account = self.create_and_setup_new_account(buls_amount=payment+collateral)
+        escrow_keypair = paket_stellar.stellar_base.Keypair.random()
+        escrow_account = escrow_keypair.address().decode(), escrow_keypair.seed().decode()
+        prepare_escrow_account = paket_stellar.prepare_create_account(launcher_account[0], escrow_account[0])
+        paket_stellar.submit_transaction_envelope(prepare_escrow_account, launcher_account[1])
+        prepare_trust = paket_stellar.prepare_trust(escrow_account[0])
+        paket_stellar.submit_transaction_envelope(prepare_trust, escrow_account[1])
+
+        # prepare escrow transactions
+        escrow_transactions = paket_stellar.prepare_escrow(
+            escrow_account[0], launcher_account[0], first_courier_account[0],
+            recipient_account[0], payment, collateral, deadline)
+        paket_stellar.submit_transaction_envelope(escrow_transactions['set_options_transaction'], escrow_account[1])
+
+        # send payment and collateral to escrow
+        prepare_send_buls = paket_stellar.prepare_send_buls(launcher_account[0], escrow_account[0], payment)
+        paket_stellar.submit_transaction_envelope(prepare_send_buls, launcher_account[1])
+        prepare_send_buls = paket_stellar.prepare_send_buls(first_courier_account[0], escrow_account[0], collateral)
+        paket_stellar.submit_transaction_envelope(prepare_send_buls, first_courier_account[1])
+
+        # prepare relay
+        relay_keypair = paket_stellar.stellar_base.Keypair.random()
+        relay_account = relay_keypair.address().decode(), relay_keypair.seed().decode()
+        prepare_relay_account = paket_stellar.prepare_create_account(first_courier_account[0], relay_account[0])
+        paket_stellar.submit_transaction_envelope(prepare_relay_account, first_courier_account[1])
+        prepare_trust = paket_stellar.prepare_trust(relay_account[0])
+        paket_stellar.submit_transaction_envelope(prepare_trust, relay_account[1])
+
+        # prepare relay transactions
+        relay_transactions = paket_stellar.prepare_relay(
+            relay_account[0], first_courier_account[0], second_courier_account[0],
+            relay_payment, relay_collateral, deadline)
+        paket_stellar.submit_transaction_envelope(relay_transactions['set_options_transaction'], relay_account[1])
+
+        # send payment and collateral to relay account
+        prepare_send_buls = paket_stellar.prepare_send_buls(first_courier_account[0], relay_account[0], relay_payment)
+        paket_stellar.submit_transaction_envelope(prepare_send_buls, first_courier_account[1])
+        prepare_send_buls = paket_stellar.prepare_send_buls(
+            second_courier_account[0], relay_account[0], relay_collateral)
+        paket_stellar.submit_transaction_envelope(prepare_send_buls, second_courier_account[1])
+
+        # accept package by recipient
+        paket_stellar.submit_transaction_envelope(escrow_transactions['payment_transaction'], recipient_account[1])
