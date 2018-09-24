@@ -259,8 +259,12 @@ class PrepareEscrowTest(BridgeBaseTest):
         LOGGER.info('preparing new escrow and relay')
         LOGGER.debug(self.prepare_relay(payment, collateral, deadline))
 
+
+class EndToEndTest(BridgeBaseTest):
+    """Ent-to-end test."""
+
     def test_ent_to_end(self):
-        "End-to-end test."
+        """End-to-end test."""
         # prepare escrow properties
         payment = 10000000
         collateral = 20000000
@@ -268,7 +272,7 @@ class PrepareEscrowTest(BridgeBaseTest):
         relay_collateral = 10000000
         deadline = int(time.time()) + 60 * 60 * 24 * 10
 
-        # prepare accounts
+        # prepare participants accounts
         # launcher_account, first_courier_account, second_courier_account, recipient_account = (
         #     self.create_and_setup_new_account() for _ in range(4))
         # escrow_account = self.create_and_setup_new_account(buls_amount=payment)
@@ -280,6 +284,15 @@ class PrepareEscrowTest(BridgeBaseTest):
                                   'SAEYMJX77WYIHT2TSONGMTUTTSR7CR2GOMPZQKNRJA5Z6JZ63REZ5KU2')
         recipient_account = ('GBR4SCRHZUPYYFIC7HBJKMEIESSZRGSTYMZSLNSG2IH2B6Z766QDTXJC',
                              'SB7R6P6NMJS3S6PA6WKFWQMD3BU4H2N7ZT4OORVQC5PSHLBBEG2OU7TZ')
+
+        # get initial balances
+        launcher_initial_balance = paket_stellar.get_bul_account(launcher_account[0])['bul_balance']
+        LOGGER.info("launcher initial balance: %s BUL stroops", launcher_initial_balance)
+        first_courier_initial_balance = paket_stellar.get_bul_account(first_courier_account[0])['bul_balance']
+        LOGGER.info("first courier initial balance: %s BUL stroops", first_courier_initial_balance)
+        second_courier_initial_balance = paket_stellar.get_bul_account(second_courier_account[0])['bul_balance']
+        LOGGER.info("second courier initial balance: %s BUL stroops", second_courier_initial_balance)
+
         # prepare escrow account
         # escrow_account = self.create_and_setup_new_account(buls_amount=payment+collateral)
         escrow_keypair = paket_stellar.stellar_base.Keypair.random()
@@ -288,18 +301,23 @@ class PrepareEscrowTest(BridgeBaseTest):
         paket_stellar.submit_transaction_envelope(prepare_escrow_account, launcher_account[1])
         prepare_trust = paket_stellar.prepare_trust(escrow_account[0])
         paket_stellar.submit_transaction_envelope(prepare_trust, escrow_account[1])
+        LOGGER.info('escrow account prepared')
 
         # prepare escrow transactions
         escrow_transactions = paket_stellar.prepare_escrow(
             escrow_account[0], launcher_account[0], first_courier_account[0],
             recipient_account[0], payment, collateral, deadline)
+        LOGGER.info('escrow transactions prepared')
         paket_stellar.submit_transaction_envelope(escrow_transactions['set_options_transaction'], escrow_account[1])
+        LOGGER.info('escrow set_options transaction sent')
 
         # send payment and collateral to escrow
         prepare_send_buls = paket_stellar.prepare_send_buls(launcher_account[0], escrow_account[0], payment)
         paket_stellar.submit_transaction_envelope(prepare_send_buls, launcher_account[1])
+        LOGGER.info('payment sent to escrow account')
         prepare_send_buls = paket_stellar.prepare_send_buls(first_courier_account[0], escrow_account[0], collateral)
         paket_stellar.submit_transaction_envelope(prepare_send_buls, first_courier_account[1])
+        LOGGER.info('collateral sent to escrow account')
 
         # prepare relay
         relay_keypair = paket_stellar.stellar_base.Keypair.random()
@@ -308,19 +326,39 @@ class PrepareEscrowTest(BridgeBaseTest):
         paket_stellar.submit_transaction_envelope(prepare_relay_account, first_courier_account[1])
         prepare_trust = paket_stellar.prepare_trust(relay_account[0])
         paket_stellar.submit_transaction_envelope(prepare_trust, relay_account[1])
+        LOGGER.info('relay account prepared')
 
         # prepare relay transactions
         relay_transactions = paket_stellar.prepare_relay(
             relay_account[0], first_courier_account[0], second_courier_account[0],
             relay_payment, relay_collateral, deadline)
-        paket_stellar.submit_transaction_envelope(relay_transactions['set_options_transaction'], relay_account[1])
-
-        # send payment and collateral to relay account
-        prepare_send_buls = paket_stellar.prepare_send_buls(first_courier_account[0], relay_account[0], relay_payment)
-        paket_stellar.submit_transaction_envelope(prepare_send_buls, first_courier_account[1])
-        prepare_send_buls = paket_stellar.prepare_send_buls(
-            second_courier_account[0], relay_account[0], relay_collateral)
-        paket_stellar.submit_transaction_envelope(prepare_send_buls, second_courier_account[1])
+        LOGGER.info('relay transactions prepared')
 
         # accept package by recipient
         paket_stellar.submit_transaction_envelope(escrow_transactions['payment_transaction'], recipient_account[1])
+        LOGGER.info('package accepted by courier')
+        paket_stellar.submit_transaction_envelope(escrow_transactions['merge_transaction'])
+        LOGGER.info('escrow merge transaction sent')
+
+        # submit relay's transactions
+        paket_stellar.submit_transaction_envelope(relay_transactions['set_options_transaction'], relay_account[1])
+        paket_stellar.submit_transaction_envelope(relay_transactions['sequence_merge_transaction'])
+
+        # get result balances
+        launcher_result_balance = paket_stellar.get_bul_account(launcher_account[0])['bul_balance']
+        first_courier_result_balance = paket_stellar.get_bul_account(first_courier_account[0])['bul_balance']
+        second_courier_result_balance = paket_stellar.get_bul_account(second_courier_account[0])['bul_balance']
+
+        # check account balances
+        self.assertEqual(
+            launcher_result_balance, launcher_initial_balance - payment,
+            "expected {} BUL stroops for launcher, {} got instead".format(
+                launcher_initial_balance - payment, launcher_result_balance))
+        self.assertEqual(
+            first_courier_result_balance, first_courier_initial_balance + payment - relay_payment,
+            "expected {} BUL stroops for first courier, {} got instead".format(
+                first_courier_initial_balance + payment - relay_payment, first_courier_result_balance))
+        self.assertEqual(
+            second_courier_result_balance, second_courier_initial_balance + relay_payment,
+            "expected {} BUL stroops for second courier, {} got instead".format(
+                second_courier_initial_balance + relay_payment, second_courier_result_balance))
