@@ -263,6 +263,8 @@ class PrepareEscrowTest(BridgeBaseTest):
 class EndToEndTest(BridgeBaseTest):
     """Ent-to-end test."""
 
+    # pylint:disable=too-many-locals
+    # pylint:disable=too-many-statements
     def test_ent_to_end(self):
         """End-to-end test."""
         # prepare escrow properties
@@ -285,11 +287,25 @@ class EndToEndTest(BridgeBaseTest):
         recipient_account = ('GBR4SCRHZUPYYFIC7HBJKMEIESSZRGSTYMZSLNSG2IH2B6Z766QDTXJC',
                              'SB7R6P6NMJS3S6PA6WKFWQMD3BU4H2N7ZT4OORVQC5PSHLBBEG2OU7TZ')
 
+        # prepare courier's additional account
+        keypair = paket_stellar.stellar_base.Keypair.random()
+        fcourier_additional_account = keypair.address().decode(), keypair.seed().decode()
+        prepare_account = paket_stellar.prepare_create_account(
+            first_courier_account[0], fcourier_additional_account[0])
+        paket_stellar.submit_transaction_envelope(prepare_account, first_courier_account[1])
+        prepare_trust = paket_stellar.prepare_trust(fcourier_additional_account[0])
+        paket_stellar.submit_transaction_envelope(prepare_trust, fcourier_additional_account[1])
+        LOGGER.info('additional account prepared')
+
         # get initial balances
         launcher_initial_balance = paket_stellar.get_bul_account(launcher_account[0])['bul_balance']
         LOGGER.info("launcher initial balance: %s BUL stroops", launcher_initial_balance)
         first_courier_initial_balance = paket_stellar.get_bul_account(first_courier_account[0])['bul_balance']
         LOGGER.info("first courier initial balance: %s BUL stroops", first_courier_initial_balance)
+        fcourier_additional_initial_balance = paket_stellar.get_bul_account(
+            fcourier_additional_account[0])['bul_balance']
+        LOGGER.info(
+            "first courier additional account initial balance: %s BUL stroops", fcourier_additional_initial_balance)
         second_courier_initial_balance = paket_stellar.get_bul_account(second_courier_account[0])['bul_balance']
         LOGGER.info("second courier initial balance: %s BUL stroops", second_courier_initial_balance)
 
@@ -305,7 +321,7 @@ class EndToEndTest(BridgeBaseTest):
 
         # prepare escrow transactions
         escrow_transactions = paket_stellar.prepare_escrow(
-            escrow_account[0], launcher_account[0], first_courier_account[0],
+            escrow_account[0], launcher_account[0], fcourier_additional_account[0],
             recipient_account[0], payment, collateral, deadline)
         LOGGER.info('escrow transactions prepared')
         paket_stellar.submit_transaction_envelope(escrow_transactions['set_options_transaction'], escrow_account[1])
@@ -319,20 +335,18 @@ class EndToEndTest(BridgeBaseTest):
         paket_stellar.submit_transaction_envelope(prepare_send_buls, first_courier_account[1])
         LOGGER.info('collateral sent to escrow account')
 
-        # prepare relay
-        relay_keypair = paket_stellar.stellar_base.Keypair.random()
-        relay_account = relay_keypair.address().decode(), relay_keypair.seed().decode()
-        prepare_relay_account = paket_stellar.prepare_create_account(first_courier_account[0], relay_account[0])
-        paket_stellar.submit_transaction_envelope(prepare_relay_account, first_courier_account[1])
-        prepare_trust = paket_stellar.prepare_trust(relay_account[0])
-        paket_stellar.submit_transaction_envelope(prepare_trust, relay_account[1])
-        LOGGER.info('relay account prepared')
-
         # prepare relay transactions
         relay_transactions = paket_stellar.prepare_relay(
-            relay_account[0], first_courier_account[0], second_courier_account[0],
-            relay_payment, relay_collateral, deadline)
+            fcourier_additional_account[0], first_courier_account[0], second_courier_account[0],
+            payment + collateral - relay_payment - relay_collateral, relay_payment + relay_collateral, deadline)
         LOGGER.info('relay transactions prepared')
+        paket_stellar.submit_transaction_envelope(
+            relay_transactions['set_options_transaction'], fcourier_additional_account[1])
+
+        # second courier send collateral directly to first courier account
+        prepare_send = paket_stellar.prepare_send_buls(
+            second_courier_account[0], first_courier_account[0], relay_collateral)
+        paket_stellar.submit_transaction_envelope(prepare_send, second_courier_account[1])
 
         # accept package by recipient
         paket_stellar.submit_transaction_envelope(escrow_transactions['payment_transaction'], recipient_account[1])
@@ -340,8 +354,8 @@ class EndToEndTest(BridgeBaseTest):
         paket_stellar.submit_transaction_envelope(escrow_transactions['merge_transaction'])
         LOGGER.info('escrow merge transaction sent')
 
-        # submit relay's transactions
-        paket_stellar.submit_transaction_envelope(relay_transactions['set_options_transaction'], relay_account[1])
+        # submit relay transactions
+        paket_stellar.submit_transaction_envelope(relay_transactions['relay_transactions'])
         paket_stellar.submit_transaction_envelope(relay_transactions['sequence_merge_transaction'])
 
         # get result balances
@@ -362,3 +376,5 @@ class EndToEndTest(BridgeBaseTest):
             second_courier_result_balance, second_courier_initial_balance + relay_payment,
             "expected {} BUL stroops for second courier, {} got instead".format(
                 second_courier_initial_balance + relay_payment, second_courier_result_balance))
+        # pylint:enable=too-many-locals
+        # pylint:enable=too-many-statements
