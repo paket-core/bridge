@@ -238,7 +238,7 @@ PREPARE_ESCROW = {
         {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
         {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
         {
-            'name': 'launcher_pubkey', 'description': 'escrow pubkey',
+            'name': 'launcher_pubkey', 'description': 'launcher pubkey',
             'in': 'formData', 'required': True, 'type': 'string'},
         {
             'name': 'courier_pubkey', 'description': 'courier pubkey',
@@ -259,6 +259,35 @@ PREPARE_ESCROW = {
     'responses': {
         '201': {
             'description': 'escrow transactions',
+        }
+    }
+}
+
+
+PREPARE_RELAY = {
+    'parameters': [
+        {'name': 'Pubkey', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Fingerprint', 'in': 'header', 'required': True, 'type': 'string'},
+        {'name': 'Signature', 'in': 'header', 'required': True, 'type': 'string'},
+        {
+            'name': 'relayer_pubkey', 'description': 'relayer pubkey',
+            'in': 'formData', 'required': True, 'type': 'string'},
+        {
+            'name': 'relay_pubkey', 'description': 'relayee pubkey',
+            'in': 'formData', 'required': True, 'type': 'string'},
+        {
+            'name': 'relayer_stroops', 'description': 'BULs promised to relayer',
+            'in': 'formData', 'required': True, 'type': 'integer'},
+        {
+            'name': 'relayee_stroops', 'description': 'BULs promised to relayee',
+            'in': 'formData', 'required': True, 'type': 'integer'},
+        {
+            'name': 'deadline_timestamp', 'description': 'deadline timestamp',
+            'in': 'formData', 'required': True, 'type': 'integer'}
+    ],
+    'responses': {
+        '201': {
+            'description': 'relay transactions',
         }
     }
 }
