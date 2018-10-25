@@ -355,7 +355,7 @@ class EndToEndTest(BridgeBaseTest):
         LOGGER.info('escrow merge transaction sent')
 
         # submit relay transactions
-        paket_stellar.submit_transaction_envelope(relay_transactions['relay_transactions'])
+        paket_stellar.submit_transaction_envelope(relay_transactions['relay_transaction'])
         paket_stellar.submit_transaction_envelope(relay_transactions['sequence_merge_transaction'])
 
         # get result balances
