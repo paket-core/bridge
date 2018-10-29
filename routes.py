@@ -23,6 +23,13 @@ webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_buls'] = webserver.validation.
 webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_num'] = webserver.validation.check_and_fix_natural
 
 
+# Internal error codes.
+webserver.validation.INTERNAL_ERROR_CODES[paket_stellar.NotOnTestnet] = 120
+webserver.validation.INTERNAL_ERROR_CODES[paket_stellar.StellarTransactionFailed] = 200
+webserver.validation.INTERNAL_ERROR_CODES[paket_stellar.stellar_base.address.AccountNotExistError] = 201
+webserver.validation.INTERNAL_ERROR_CODES[paket_stellar.TrustError] = 202
+
+
 # Wallet routes.
 
 
