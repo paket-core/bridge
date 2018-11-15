@@ -1,4 +1,4 @@
-"""JSON swagger API to PaKeT."""
+"""JSON swagger API to PAKET."""
 import os
 
 import flasgger

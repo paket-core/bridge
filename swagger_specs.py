@@ -1,7 +1,7 @@
 """Swagger specifications of Identity Server."""
 VERSION = 3
 CONFIG = {
-    'title': 'PaKeT Bridge',
+    'title': 'PAKET Bridge',
     'uiversion': 2,
     'specs_route': '/',
     'specs': [{
@@ -9,10 +9,10 @@ CONFIG = {
         'route': '/apispec.json',
     }],
     'info': {
-        'title': 'The PaKeT Bridge API',
+        'title': 'The PAKET Bridge API',
         'version': VERSION,
         'contact': {
-            'name': 'The PaKeT Project',
+            'name': 'The PAKET Project',
             'email': 'israel@paket.global',
             'url': 'https://bridge.paket.global',
         },
@@ -21,7 +21,7 @@ CONFIG = {
             'url': 'http://www.gnu.org/licenses/'
         },
         'description': '''
-Bridge Server for The PaKeT Project
+Bridge Server for The PAKET Project
 
 What is this?
 =============
@@ -32,7 +32,7 @@ commands that can be used to call the server.
 
 Our Server
 ==========
-We run a centralized server that can be used to interact with PaKeT's bottom
+We run a centralized server that can be used to interact with PAKET's bottom
 layers. Since Layer one is completely implemented on top of the Stellar
 network, it can be interacted with directly in a fully decentralized fashion.
 We created this server only as a gateway to the bottom layers to simplify the
