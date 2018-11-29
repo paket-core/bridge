@@ -37,8 +37,8 @@ webserver.validation.INTERNAL_ERROR_CODES[paket_stellar.stellar_base.exceptions.
 
 @BLUEPRINT.route("/v{}/submit_transaction".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.SUBMIT_TRANSACTION)
-@webserver.validation.call(['transaction'])
-def submit_transaction_handler(transaction):
+@webserver.validation.call(['transaction', 'address'])
+def submit_transaction_handler(transaction, address):
     """
     Submit a signed transaction. This call is used to submit signed
     transactions. Signed transactions can be obtained by signing unsigned
@@ -47,9 +47,10 @@ def submit_transaction_handler(transaction):
     sign the transaction with your private key.
     ---
     :param transaction:
+    :param address:
     :return:
     """
-    return {'status': 200, 'response': paket_stellar.submit_transaction_envelope(transaction)}
+    return {'status': 200, 'response': paket_stellar.submit_transaction_envelope(transaction, address)}
 
 
 @BLUEPRINT.route("/v{}/bul_account".format(VERSION), methods=['POST'])
