@@ -62,7 +62,7 @@ class BridgeBaseTest(unittest.TestCase):
                 address = paket_stellar.stellar_base.Keypair.from_seed(seed).address().decode()
         return self.call(
             'submit_transaction', 200, "failed submitting {} transaction".format(description),
-            address=address, transaction=transaction)
+            transaction=transaction)
 
     def create_account(self, from_pubkey, new_pubkey, seed, starting_balance=50000000):
         """Create account with starting balance."""
@@ -170,7 +170,7 @@ class SubmitTransactionTest(BridgeBaseTest):
         self.call(
             path='submit_transaction', expected_code=200,
             fail_message='unexpected server response for submitting signed create_account transaction',
-            address=self.funder_pubkey, seed=self.funder_seed, transaction=signed_account)
+            seed=self.funder_seed, transaction=signed_account)
 
         # checking trust transaction
         unsigned_trust = self.call(
@@ -180,7 +180,7 @@ class SubmitTransactionTest(BridgeBaseTest):
         self.call(
             path='submit_transaction', expected_code=200,
             fail_message='unexpected server response for submitting signed trust transaction',
-            address=new_pubkey, seed=new_seed, transaction=signed_trust)
+            seed=new_seed, transaction=signed_trust)
 
         # checking send_buls transaction
         unsigned_send_buls = self.call(
@@ -191,7 +191,7 @@ class SubmitTransactionTest(BridgeBaseTest):
         self.call(
             path='submit_transaction', expected_code=200,
             fail_message='unexpected server response for submitting signed send_buls transaction',
-            address=self.funder_pubkey, seed=self.funder_seed, transaction=signed_send_buls)
+            seed=self.funder_seed, transaction=signed_send_buls)
 
 
 class BulAccountTest(BridgeBaseTest):
@@ -295,8 +295,7 @@ class EndToEndTest(BridgeBaseTest):
         fcourier_additional_account = keypair.address().decode(), keypair.seed().decode()
         prepare_account = paket_stellar.prepare_create_account(
             first_courier_account[0], fcourier_additional_account[0])
-        paket_stellar.submit_transaction_envelope(
-            prepare_account, first_courier_account[0], seed=first_courier_account[1])
+        paket_stellar.submit_transaction_envelope(prepare_account, seed=first_courier_account[1])
         prepare_trust = paket_stellar.prepare_trust(fcourier_additional_account[0])
         paket_stellar.submit_transaction_envelope(prepare_trust, seed=fcourier_additional_account[1])
         LOGGER.info('additional account prepared')
@@ -357,15 +356,12 @@ class EndToEndTest(BridgeBaseTest):
         paket_stellar.submit_transaction_envelope(
             escrow_transactions['payment_transaction'], seed=recipient_account[1])
         LOGGER.info('package accepted by courier')
-        paket_stellar.submit_transaction_envelope(
-            escrow_transactions['merge_transaction'], address=recipient_account[0])
+        paket_stellar.submit_transaction_envelope(escrow_transactions['merge_transaction'])
         LOGGER.info('escrow merge transaction sent')
 
         # submit relay transactions
-        paket_stellar.submit_transaction_envelope(
-            relay_transactions['relay_transaction'], address=first_courier_account[0])
-        paket_stellar.submit_transaction_envelope(
-            relay_transactions['sequence_merge_transaction'], address=first_courier_account[0])
+        paket_stellar.submit_transaction_envelope(relay_transactions['relay_transaction'])
+        paket_stellar.submit_transaction_envelope(relay_transactions['sequence_merge_transaction'])
 
         # get result balances
         launcher_result_balance = paket_stellar.get_bul_account(launcher_account[0])['bul_balance']
