@@ -28,7 +28,7 @@ class BridgeBaseTest(unittest.TestCase):
     @staticmethod
     def sign_transaction(transaction, seed):
         """Sign transaction with provided seed"""
-        builder = paket_stellar.stellar_base.builder.Builder(horizon=paket_stellar.HORIZON_SERVER, secret=seed)
+        builder = paket_stellar.stellar_base.builder.Builder(horizon_uri=paket_stellar.HORIZON_SERVER, secret=seed)
         builder.import_from_xdr(transaction)
         builder.sign()
         signed_transaction = builder.gen_te().xdr().decode()
@@ -53,25 +53,28 @@ class BridgeBaseTest(unittest.TestCase):
                 fail_message, response.get('error')))
         return response
 
-    def submit(self, transaction, seed=None, description='unknown'):
+    def submit(self, transaction, address=None, seed=None, description='unknown'):
         """Submit a transaction, optionally adding seed's signature."""
         LOGGER.info("trying to submit %s transaction", description)
         if seed:
             transaction = self.sign_transaction(transaction, seed)
+            if address is None:
+                address = paket_stellar.stellar_base.Keypair.from_seed(seed).address().decode()
         return self.call(
-            'submit_transaction', 200, "failed submitting {} transaction".format(description), transaction=transaction)
+            'submit_transaction', 200, "failed submitting {} transaction".format(description),
+            transaction=transaction)
 
     def create_account(self, from_pubkey, new_pubkey, seed, starting_balance=50000000):
-        """Create account with starting balance"""
+        """Create account with starting balance."""
         LOGGER.info('creating %s from %s', new_pubkey, from_pubkey)
         unsigned = self.call(
             'prepare_account', 200, 'could not get create account transaction',
             from_pubkey=from_pubkey, new_pubkey=new_pubkey, starting_balance=starting_balance)['transaction']
-        response = self.submit(unsigned, seed, 'create account')
+        response = self.submit(unsigned, seed=seed, description='create account')
         return response
 
     def create_and_setup_new_account(self, starting_balance=50000000, buls_amount=None, trust_limit=None):
-        """Create account. Add trust and send initial ammount of BULs (if specified)"""
+        """Create account. Add trust and send initial amount of BULs (if specified)."""
         keypair = paket_stellar.get_keypair()
         pubkey = keypair.address().decode()
         seed = keypair.seed().decode()
@@ -83,11 +86,11 @@ class BridgeBaseTest(unittest.TestCase):
         return pubkey, seed
 
     def trust(self, pubkey, seed, limit=None):
-        """Submit trust transaction for specified account"""
+        """Submit trust transaction for specified account."""
         LOGGER.info('adding trust for %s (%s)', pubkey, limit)
         unsigned = self.call(
             'prepare_trust', 200, 'could not get trust transaction', from_pubkey=pubkey, limit=limit)['transaction']
-        return self.submit(unsigned, seed, 'add trust')
+        return self.submit(unsigned, seed=seed, description='add trust')
 
     def send(self, from_seed, to_pubkey, amount_buls):
         """Send BULs between accounts."""
@@ -97,7 +100,7 @@ class BridgeBaseTest(unittest.TestCase):
         unsigned = self.call(
             'prepare_send_buls', 200, "can not prepare send from {} to {}".format(from_pubkey, to_pubkey),
             from_pubkey=from_pubkey, to_pubkey=to_pubkey, amount_buls=amount_buls)['transaction']
-        return self.submit(unsigned, from_seed, description)
+        return self.submit(unsigned, seed=from_seed, description=description)
 
     def prepare_escrow(self, payment, collateral, deadline, location=None):
         """Create launcher, courier, recipient, escrow accounts and call prepare_escrow"""
@@ -196,7 +199,7 @@ class BulAccountTest(BridgeBaseTest):
 
     def test_bul_account(self):
         """Test getting existing account."""
-        accounts = [self.funder_pubkey]
+        accounts = []
         # additionally create 3 new accounts
         for _ in range(3):
             keypair = paket_stellar.get_keypair()
@@ -292,9 +295,9 @@ class EndToEndTest(BridgeBaseTest):
         fcourier_additional_account = keypair.address().decode(), keypair.seed().decode()
         prepare_account = paket_stellar.prepare_create_account(
             first_courier_account[0], fcourier_additional_account[0])
-        paket_stellar.submit_transaction_envelope(prepare_account, first_courier_account[1])
+        paket_stellar.submit_transaction_envelope(prepare_account, seed=first_courier_account[1])
         prepare_trust = paket_stellar.prepare_trust(fcourier_additional_account[0])
-        paket_stellar.submit_transaction_envelope(prepare_trust, fcourier_additional_account[1])
+        paket_stellar.submit_transaction_envelope(prepare_trust, seed=fcourier_additional_account[1])
         LOGGER.info('additional account prepared')
 
         # get initial balances
@@ -314,9 +317,9 @@ class EndToEndTest(BridgeBaseTest):
         escrow_keypair = paket_stellar.stellar_base.Keypair.random()
         escrow_account = escrow_keypair.address().decode(), escrow_keypair.seed().decode()
         prepare_escrow_account = paket_stellar.prepare_create_account(launcher_account[0], escrow_account[0])
-        paket_stellar.submit_transaction_envelope(prepare_escrow_account, launcher_account[1])
+        paket_stellar.submit_transaction_envelope(prepare_escrow_account, seed=launcher_account[1])
         prepare_trust = paket_stellar.prepare_trust(escrow_account[0])
-        paket_stellar.submit_transaction_envelope(prepare_trust, escrow_account[1])
+        paket_stellar.submit_transaction_envelope(prepare_trust, seed=escrow_account[1])
         LOGGER.info('escrow account prepared')
 
         # prepare escrow transactions
@@ -324,15 +327,16 @@ class EndToEndTest(BridgeBaseTest):
             escrow_account[0], launcher_account[0], fcourier_additional_account[0],
             recipient_account[0], payment, collateral, deadline)
         LOGGER.info('escrow transactions prepared')
-        paket_stellar.submit_transaction_envelope(escrow_transactions['set_options_transaction'], escrow_account[1])
+        paket_stellar.submit_transaction_envelope(
+            escrow_transactions['set_options_transaction'], seed=escrow_account[1])
         LOGGER.info('escrow set_options transaction sent')
 
         # send payment and collateral to escrow
         prepare_send_buls = paket_stellar.prepare_send_buls(launcher_account[0], escrow_account[0], payment)
-        paket_stellar.submit_transaction_envelope(prepare_send_buls, launcher_account[1])
+        paket_stellar.submit_transaction_envelope(prepare_send_buls, seed=launcher_account[1])
         LOGGER.info('payment sent to escrow account')
         prepare_send_buls = paket_stellar.prepare_send_buls(first_courier_account[0], escrow_account[0], collateral)
-        paket_stellar.submit_transaction_envelope(prepare_send_buls, first_courier_account[1])
+        paket_stellar.submit_transaction_envelope(prepare_send_buls, seed=first_courier_account[1])
         LOGGER.info('collateral sent to escrow account')
 
         # prepare relay transactions
@@ -341,15 +345,16 @@ class EndToEndTest(BridgeBaseTest):
             payment + collateral - relay_payment - relay_collateral, relay_payment + relay_collateral, deadline)
         LOGGER.info('relay transactions prepared')
         paket_stellar.submit_transaction_envelope(
-            relay_transactions['set_options_transaction'], fcourier_additional_account[1])
+            relay_transactions['set_options_transaction'], seed=fcourier_additional_account[1])
 
         # second courier send collateral directly to first courier account
         prepare_send = paket_stellar.prepare_send_buls(
             second_courier_account[0], first_courier_account[0], relay_collateral)
-        paket_stellar.submit_transaction_envelope(prepare_send, second_courier_account[1])
+        paket_stellar.submit_transaction_envelope(prepare_send, seed=second_courier_account[1])
 
         # accept package by recipient
-        paket_stellar.submit_transaction_envelope(escrow_transactions['payment_transaction'], recipient_account[1])
+        paket_stellar.submit_transaction_envelope(
+            escrow_transactions['payment_transaction'], seed=recipient_account[1])
         LOGGER.info('package accepted by courier')
         paket_stellar.submit_transaction_envelope(escrow_transactions['merge_transaction'])
         LOGGER.info('escrow merge transaction sent')
