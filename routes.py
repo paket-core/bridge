@@ -19,7 +19,7 @@ BLUEPRINT = flask.Blueprint('bridge', __name__)
 
 # Input validators and fixers.
 webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_timestamp'] = webserver.validation.check_and_fix_natural
-webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_buls'] = webserver.validation.check_and_fix_natural
+webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_stroops'] = webserver.validation.check_and_fix_natural
 webserver.validation.KWARGS_CHECKERS_AND_FIXERS['_num'] = webserver.validation.check_and_fix_natural
 
 
@@ -121,11 +121,11 @@ def prepare_send_buls_handler(from_pubkey, to_pubkey, amount_buls):
 @BLUEPRINT.route("/v{}/prepare_escrow".format(VERSION), methods=['POST'])
 @flasgger.swag_from(swagger_specs.PREPARE_ESCROW)
 @webserver.validation.call(
-    ['launcher_pubkey', 'recipient_pubkey', 'courier_pubkey', 'payment_buls', 'collateral_buls', 'deadline_timestamp'],
+    ['launcher_pubkey', 'recipient_pubkey', 'courier_pubkey', 'full_amount_stroops', 'deadline_timestamp'],
     require_auth=True)
 def prepare_escrow_handler(
         user_pubkey, launcher_pubkey, courier_pubkey, recipient_pubkey,
-        payment_buls, collateral_buls, deadline_timestamp):
+        full_amount_stroops, deadline_timestamp):
     """
     Launch a package.
     Use this call to create a new package for delivery.
@@ -134,14 +134,13 @@ def prepare_escrow_handler(
     :param launcher_pubkey:
     :param courier_pubkey:
     :param recipient_pubkey:
-    :param payment_buls:
-    :param collateral_buls:
+    :param full_amount_stroops:
     :param deadline_timestamp:
     :return:
     """
     return dict(status=201, escrow_details=paket_stellar.prepare_escrow(
         user_pubkey, launcher_pubkey, courier_pubkey, recipient_pubkey,
-        payment_buls, collateral_buls, deadline_timestamp))
+        full_amount_stroops, deadline_timestamp))
 
 
 @BLUEPRINT.route("/v{}/prepare_relay".format(VERSION), methods=['POST'])

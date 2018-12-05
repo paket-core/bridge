@@ -247,10 +247,7 @@ PREPARE_ESCROW = {
             'name': 'recipient_pubkey', 'description': 'recipient pubkey',
             'in': 'formData', 'required': True, 'type': 'string'},
         {
-            'name': 'payment_buls', 'description': 'BULs promised as payment',
-            'in': 'formData', 'required': True, 'type': 'integer'},
-        {
-            'name': 'collateral_buls', 'description': 'BULs promised as collateral',
+            'name': 'full_amount_stroops', 'description': 'Sum of payment and collateral',
             'in': 'formData', 'required': True, 'type': 'integer'},
         {
             'name': 'deadline_timestamp', 'description': 'deadline timestamp',

@@ -53,13 +53,11 @@ class BridgeBaseTest(unittest.TestCase):
                 fail_message, response.get('error')))
         return response
 
-    def submit(self, transaction, address=None, seed=None, description='unknown'):
+    def submit(self, transaction, seed=None, description='unknown'):
         """Submit a transaction, optionally adding seed's signature."""
         LOGGER.info("trying to submit %s transaction", description)
         if seed:
             transaction = self.sign_transaction(transaction, seed)
-            if address is None:
-                address = paket_stellar.stellar_base.Keypair.from_seed(seed).address().decode()
         return self.call(
             'submit_transaction', 200, "failed submitting {} transaction".format(description),
             transaction=transaction)
@@ -116,7 +114,7 @@ class BridgeBaseTest(unittest.TestCase):
         escrow_transactions = self.call(
             'prepare_escrow', 201, 'can not prepare escrow transactions', escrow[1],
             launcher_pubkey=launcher[0], courier_pubkey=courier[0], recipient_pubkey=recipient[0],
-            payment_buls=payment, collateral_buls=collateral, deadline_timestamp=deadline, location=location)
+            full_amount_stroops=payment + collateral, deadline_timestamp=deadline, location=location)
 
         return {
             'launcher': launcher,
@@ -273,6 +271,7 @@ class EndToEndTest(BridgeBaseTest):
         # prepare escrow properties
         payment = 10000000
         collateral = 20000000
+        full_amount = payment + collateral
         relay_payment = 5000000
         relay_collateral = 10000000
         deadline = int(time.time()) + 60 * 60 * 24 * 10
@@ -325,7 +324,7 @@ class EndToEndTest(BridgeBaseTest):
         # prepare escrow transactions
         escrow_transactions = paket_stellar.prepare_escrow(
             escrow_account[0], launcher_account[0], fcourier_additional_account[0],
-            recipient_account[0], payment, collateral, deadline)
+            recipient_account[0], full_amount, deadline)
         LOGGER.info('escrow transactions prepared')
         paket_stellar.submit_transaction_envelope(
             escrow_transactions['set_options_transaction'], seed=escrow_account[1])
